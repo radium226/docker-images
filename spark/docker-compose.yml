@@ -18,8 +18,8 @@ services:
       - 8081
     volumes:
       - spark-events:/var/lib/spark/events
-  spark-history:
-    build: "./history"
+  spark-history-server:
+    build: "./history-server"
     ports:
       - 18080:18080
     volumes:

@@ -8,7 +8,7 @@ RUN apk --no-cache add --virtual build-dependencies \
 
 RUN mkdir "/tmp/spark" && \
     wget --no-verbose \
-      "http://apache.mediamirrors.org/spark/spark-2.3.0/spark-2.3.0-bin-hadoop2.7.tgz" \
+      "http://apache.mediamirrors.org/spark/spark-2.3.0/spark-2.2.0-bin-hadoop2.7.tgz" \
       -O "/tmp/spark.tgz"
 
 RUN mkdir "/usr/lib/spark" && \
