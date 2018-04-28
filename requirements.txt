@@ -1,0 +1,3 @@
+termcolor
+dockerfile-parser
+networkx

@@ -1,0 +1,127 @@
+#!/bin/env python3
+
+from sys import argv
+from collections import namedtuple
+from os import listdir
+from pathlib import Path
+import networkx as nx
+from dockerfile_parse import DockerfileParser
+import subprocess as sp
+import termcolor as tc
+
+class Image:
+
+    def __init__(self, folder_path, project, role):
+        self._project = project
+        self._role = role
+        self._folder_path = folder_path
+
+    @property
+    def base_image_name(self):
+        dockerfile_file_path = self.folder_path / "Dockerfile"
+        docker_file_parser = DockerfileParser()
+
+        with dockerfile_file_path.open() as dockerfile:
+            docker_file_parser.content = dockerfile.read()
+
+        return docker_file_parser.baseimage
+
+    @property
+    def name(self):
+        if self.role:
+            return f"{self.project}-{self.role}"
+        else:
+            return self.project
+
+    @property
+    def folder_path(self):
+        return self._folder_path
+
+    @property
+    def project(self):
+        return self._project
+
+    @property
+    def role(self):
+        return self._role
+
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        return f"Image({self.folder_path}, {self.project}, {self.role})"
+
+
+def list_sub_folders(folder_path):
+    return list(filter(
+        lambda sub_folder_path: not sub_folder_path.name.startswith("."),
+        [sub_folder_path for sub_folder_path in Path(folder_path).iterdir() if sub_folder_path.is_dir()]
+    ))
+
+def find_image_by_name(images, image_name):
+    for image in images:
+        if image.name == image_name:
+            return image
+    return None
+
+def build_local_images_graph(folder_path):
+    graph = nx.DiGraph()
+    local_images = list_local_images(folder_path)
+    for local_image in local_images :
+        graph.add_node(local_image)
+
+    for local_image in local_images:
+        local_base_image = find_image_by_name(local_images, local_image.base_image_name)
+        if local_base_image:
+            graph.add_edge(local_base_image, local_image)
+
+    return graph
+
+
+def list_local_images(folder_path):
+    def iterate_local_images(folder_path):
+        for project_sub_folder_path in list_sub_folders("."):
+            project = project_sub_folder_path.name
+            if (project_sub_folder_path / "Dockerfile").exists():
+                yield Image(project_sub_folder_path, project, None)
+            else:
+                for role_sub_folder_path in list_sub_folders(f"./{project}"):
+                    role = role_sub_folder_path.name
+                    image = Image(role_sub_folder_path, project, role)
+                    yield image
+    return list(iterate_local_images(folder_path))
+
+
+def iter_len(it):
+    l = 0
+    for i in it:
+        l = l + 1
+    return l
+
+
+def build_project(docker_images_graph, initial_docker_image):
+    print(tc.colored(f" - Switching to {initial_docker_image.project.title()} project", "blue"))
+    build_docker_images(docker_images_graph, initial_docker_image)
+
+def build_docker_images(docker_images_graph, docker_image):
+    print(tc.colored(f"    - Building {docker_image.name} image", "yellow"))
+    sp.call(["docker", "build", "-t", docker_image.name, "."], cwd=str(docker_image.folder_path))
+    for next_docker_image in docker_images_graph.successors(docker_image):
+        build_docker_images(docker_images_graph, next_docker_image)
+
+
+def list_initial_nodes(graph):
+    begining_nodes = []
+    for node in nx.topological_sort(graph):
+        if iter_len(graph.predecessors(node)) == 0:
+            begining_nodes.append(node)
+    return begining_nodes
+
+def main(arguments):
+    local_images_graph = build_local_images_graph(".")
+    for begining_node in list_initial_nodes(local_images_graph):
+        build_project(local_images_graph, begining_node)
+
+
+if __name__ == "__main__":
+    main(argv)
