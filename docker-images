@@ -19,8 +19,9 @@ class Docker:
         self._client = d.APIClient(base_url='unix://var/run/docker.sock')
 
     def build(self, image):
-        for line in self._client.build(path=str(image.folder_path), tag=f"radium226/{image.name}"):
+        for line in self._client.build(path=str(image.folder_path), tag=f"{image.name}"):
             object = json.loads(line)
+            print(line)
             try:
                 sys.stdout.write(object["stream"])
                 sys.stdout.flush()
