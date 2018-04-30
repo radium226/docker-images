@@ -11,3 +11,4 @@ install:
 script:
   - ./docker-images
   - docker ps -a
+  - docker images -a
