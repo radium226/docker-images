@@ -1,4 +1,4 @@
-FROM spark-base
+FROM spark-base:2.3.0
 
 COPY ["./spark-env.sh.tpl", "/etc/spark/spark-env.sh.tpl"]
 

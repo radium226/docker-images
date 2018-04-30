@@ -1,3 +1,5 @@
 termcolor
 dockerfile-parse
 networkx
+docker
+pyyaml
