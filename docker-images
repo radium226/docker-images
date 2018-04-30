@@ -12,11 +12,23 @@ import yaml
 import docker as d
 import json
 import sys
+import os
 
 class Docker:
 
     def __init__(self):
         self._client = d.APIClient(base_url='unix://var/run/docker.sock')
+
+    def login(self, user, password):
+        for line in self._client.login(user, password):
+            print(line)
+
+    def push(self, image):
+        print(self._client.push(tag=f"radioactiveradium226/{image.name}"))
+
+    def tag(self, image, name):
+        print(name)
+        self._client.tag(image=image.name, tag=name, repository="registry.hub.docker.com")
 
     def build(self, image):
         for line in self._client.build(path=str(image.folder_path), tag=f"{image.name}"):
@@ -150,11 +162,22 @@ class Image:
 
 
 def main(arguments):
+    user = os.environ["DOCKERHUB_USER"]
+    password = os.environ["DOCKERHUB_PASSWORD"]
+
+    #sp.call(["docker", "login", "-u", user, "-p", password])
+    p = sp.Popen(f"echo '{password}' | docker login -u {user} --password-stdin", shell=True)
+    p.wait()
     image_graph = ImageGraph.for_projects(list_projects(pl.Path(".")))
-    docker = Docker()
     for image in image_graph.images:
         print(tc.colored(f"Building {image.name}... ", "blue"))
-        docker.build(image)
+        sp.call(["docker", "build", "."], cwd=str(image.folder_path))
+
+        sp.call(["docker", "tag", image.name, f"{user}/{image.name}"])
+
+        print(tc.colored(f"Pushing {image.name}... ", "blue"))
+        sp.call(["docker", "push", f"{user}/{image.name}"])
+
         print()
 
 

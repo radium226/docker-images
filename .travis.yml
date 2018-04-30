@@ -1,14 +1,16 @@
 language: python
 python:
-  - "3.6"
+- '3.6'
 sudo: required
 services:
- - docker
-
+- docker
 install:
-  - pip install -r "./requirements.txt"
-
+- pip install -r "./requirements.txt"
 script:
-  - ./docker-images
-  - docker ps -a
-  - docker images -a
+- "./docker-images"
+- docker ps -a
+- docker images -a
+env:
+  global:
+  - secure: iAZMmeJWc8ZmrCvdShJ9U53ZSRa2m/IT6JxnnILcuZnFgHBe/TOqSnFaOt2kyjMCwbezmCXTmr5WHTe3bzYenIKe0KuOTj3IDnVCGM4F/DAbRMZ9rGDf5Juc2sKiyUECM5aGdRGBKAkTWcuHwb7ioGdUMez5LHSlqdA/mbRKAe8Bktbs4Kqcq1ZSKXsQwnVBTh1lSwT1+1IfEqgTMt3XLQUR2sxnVu0hIXZs3REiY+A9dxnRFKGH39PzS3HHq8/Co30BNDzOqF/CAXQBPIEwLUzh9d7IX7/B1oqiftieuItzy0OuwRAGW+CCL5bjZlnM2AUViBs+87/UCReWQHfqlxAcyOXF7mDZ450KEF5Go+XZ5bAW0dapAUpZTCMVmTRMSQ5k1cQLb/XwMokS5gQEuCEvOAHKLGozO5EqDgSot1YtmZROvgnNp/83ZWzmOOzvg8VVFeFR/ZfkeEghytQj6qMri7yEcCSmDFw0Aoe0o4qfIFSNaxSvXmJZjmh3srYZI9zFNr24MnNoI4v9/MC94v58rBKugaGdpFbiWOvyjh3jbNblsYwFSbmf+YJQ7gt8eRLmeh3VcybuiefCepEBSdimuPwB/lakqAm+E2+F9Qac1afrU8oRQXAk+/DxKT7Dw18oOvxjrDkg/D0PAsFW+kSGczngIDNcNibmff8z8ek=
+  - secure: kdoYzhWtfm5err7nHwjL4Zuy4F7/e8m/lHy7P9i77b06pbwSuZdQodvpTVe0/ztGe1TI1+jGviZlCYTSPJ5CpkAH8LI79yRjAyuYABcGlQXbj3P2gbTE7/uml2oq+swrhrujCC/feL+jW2cvqJjThCtGBP71UbSrZj/4/RViI/e4HVRu4a0dwq9ZxpY22oqDtc1F3zpQhWOTsQlnIdHdvPJrwYfBSdfiGoAD9RsgJ48vLzBS8bO5iW+FqAm8SCX9bARgCNiywB4gWcpIKzm2TUDqeGUPY1zJFLwUMxaDoP4JXmnNQqN6GDMmyqu6YEGnLc6lHsks+EvU+uZNmnFPmDdlJBItcwIWkpE7uPuQKlHSneH+PX6dBUU53bIwlXvfb5dRIwUYL3V0xX8lBDVB+ZcATopoxvgrxi34hj2T1LX80SEuBDdlmVurpGexcTc6AKuGng3yF1kf6jCyLmgdZO+ZntdEZf4K8Dsd5lIN/YfGeNjJ0Kayas1ZC68SgEtj+x2x8K+ilSf/BpPP2eZ7YQ2m4AW7MlHGm5HCmwMiHakT3hu1845JYo9WIl6XDTt6O/UmYpCN4sRKkFGMxTs6feBJZBdUw5Y1NBoLj0v7H6MysxPsRg1Yy4Ag/oM+T2eRKSi3nk0b0dPEFt2OCvUQXnZ4BMR/RfrESGYmM/+fL1U=
