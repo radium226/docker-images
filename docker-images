@@ -9,17 +9,17 @@ from dockerfile_parse import DockerfileParser
 import subprocess as sp
 import termcolor as tc
 import yaml
-import docker
+import docker as d
 import json
 import sys
 
 class Docker:
 
     def __init__(self):
-        self._client = docker.APIClient(base_url='unix://var/run/docker.sock')
+        self._client = d.APIClient(base_url='unix://var/run/docker.sock')
 
     def build(self, image):
-        for line in self._client.build(path=str(image.folder_path)):
+        for line in self._client.build(path=str(image.folder_path), tag=f"radium226/{image.name}"):
             object = json.loads(line)
             try:
                 sys.stdout.write(object["stream"])
