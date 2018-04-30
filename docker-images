@@ -171,7 +171,7 @@ def main(arguments):
     image_graph = ImageGraph.for_projects(list_projects(pl.Path(".")))
     for image in image_graph.images:
         print(tc.colored(f"Building {image.name}... ", "blue"))
-        sp.call(["docker", "build", "."], cwd=str(image.folder_path))
+        sp.call(["docker", "build", ".", "-t", image.name], cwd=str(image.folder_path))
 
         sp.call(["docker", "tag", image.name, f"{user}/{image.name}"])
 
