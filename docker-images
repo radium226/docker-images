@@ -263,7 +263,7 @@ def main(arguments):
             Docker.build(image)
 
             print(tc.colored(f"Tagging {image.name}... ", "blue"))
-            Docker.tag(image, user + "/" + "image.name")
+            #Docker.tag(image, user + "/" + "image.name")
 
             print(tc.colored(f"Pushing {image.name}... ", "blue"))
             Docker.push(image)
