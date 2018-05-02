@@ -3,3 +3,4 @@ dockerfile-parse
 networkx
 docker
 pyyaml
+jinja2
