@@ -1,0 +1,5 @@
+parameters:
+  version:
+    - 8
+    - 10
+name: "java-base:{{ version }}"

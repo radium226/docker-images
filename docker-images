@@ -13,62 +13,178 @@ import docker as d
 import json
 import sys
 import os
+import itertools as it
+import jinja2 as j2
+import time as t
+import tempfile as tf
+
+MANIFEST_FILE_NAME = "manifest.yml"
+
+class ImageTemplate:
+
+    def __init__(self, project, folder_path):
+        self.folder_path = folder_path
+        self.project = project
+
+    @property
+    def manifest(self):
+        manifest_file_path = self.folder_path / "manifest.yml"
+        if manifest_file_path.exists():
+            with manifest_file_path.open() as manifest_file:
+                yaml_content = manifest_file.read()
+                manifest = yaml.load(yaml_content)
+                return manifest
+        return {}
+
+    def __str__(self):
+        return f"ImageTemplate({self.project}, {self.folder_path})"
+
+    def __repr__(self):
+        return str(self)
+
+    @property
+    def parameters_product(self):
+        try:
+            return dict_product(self.manifest["parameters"])
+        except KeyError as e:
+            return {}
+
+    @classmethod
+    def render_image_name(cls, image_template, parameters):
+        try:
+            image_name_template = j2.Template(image_template.manifest["name"])
+            image_name = image_name_template.render(**parameters)
+            return image_name
+        except KeyError as e:
+            return image_template.project.name + "-" + image_template.folder_path.name + ":" + image_template.project.version
+
+    @classmethod
+    def render_image_names(cls, image_template):
+        image_names = []
+        for parameters in image_template.parameters_product:
+            image_name = cls.render_image_name(image_template, parameters) # TODO: Find a better way
+            image_names.append(image_name)
+        return image_names if len(image_names) > 0 else [cls.render_image_name(image_template, {})]
+
+    @classmethod
+    def render_dockerfile(cls, image_template, parameters):
+        with (image_template.folder_path / "Dockerfile.j2").open() as dockerfile_j2_file:
+            dockerfile_j2 = dockerfile_j2_file.read()
+            template = j2.Template(dockerfile_j2)
+            return template.render(**parameters)
+
+    def render_images(self):
+        should_yield_at_end = True
+        for parameters in self.parameters_product:
+            should_yield_at_end = False
+            image_name = ImageTemplate.render_image_name(self, parameters)
+            dockerfile = ImageTemplate.render_dockerfile(self, parameters)
+            image = Image(self, dockerfile, image_name)
+            #t.sleep(10000)
+            image.write_dockerfile() # TODO: Find a better way
+            #t.sleep(10000)
+            yield image
+
+        if should_yield_at_end:
+            image_name = ImageTemplate.render_image_name(self, {})
+            dockerfile = ImageTemplate.render_dockerfile(self, {})
+            image = Image(self, dockerfile, image_name)
+            image.write_dockerfile() # TODO: Find a better way
+            yield image
+'''
+    @classmethod
+    def base_image_name(cls, image):
+        t.sleep(10000)
+        dockerfile_file_path = image.template.folder_path / "Dockerfile" # TODO: Ditto, it should have its own folder path
+        docker_file_parser = DockerfileParser()
+        print(image.template.folder_path / "Dockerfile") # TODO: Ditto, it should have its own folder path
+        with dockerfile_file_path.open() as dockerfile_file:
+            docker_file_parser.content = dockerfile.read()
+        return docker_file_parser.baseimage
+'''
+class Image:
+
+    def __init__(self, template, dockerfile, name):
+        self.template = template
+        self.dockerfile = dockerfile
+        self.name = name
+
+    def write_dockerfile(self):
+        with (self.template.folder_path / "Dockerfile").open("w") as dockerfile_file:
+            dockerfile_file.write(self.dockerfile)
+
+    def __str__(self):
+        return f"Image({self.template}, {self.dockerfile}, {self.name})"
+
+    def __repr__(self):
+        return str(self)
+
+    @classmethod
+    def base_image_name(cls, image):
+        dockerfile_file_path = image.template.folder_path / "Dockerfile" # TODO: Ditto, it should have its own folder path
+        docker_file_parser = DockerfileParser(path=tf.mkdtemp())
+        with dockerfile_file_path.open() as dockerfile:
+            docker_file_parser.content = dockerfile.read()
+            #t.sleep(10000)
+        return docker_file_parser.baseimage
 
 class Docker:
 
     def __init__(self):
         self._client = d.APIClient(base_url='unix://var/run/docker.sock')
 
-    def login(self, user, password):
-        for line in self._client.login(user, password):
-            print(line)
+    @classmethod
+    def login(cls, user, password):
+        p = sp.Popen(f"echo '{password}' | docker login -u {user} --password-stdin", shell=True)
+        p.wait()
+        
+    @classmethod
+    def push(cls, image):
+        sp.call(["docker", "push", f"{user}/{image.name}"])
 
-    def push(self, image):
-        print(self._client.push(tag=f"radioactiveradium226/{image.name}"))
+    @classmethod
+    def tag(cls, image, name):
+        sp.call(["docker", "tag", image.name, f"{user}/{image.name}"])
 
-    def tag(self, image, name):
-        print(name)
-        self._client.tag(image=image.name, tag=name, repository="registry.hub.docker.com")
+    @classmethod
+    def build(cls, image):
+        sp.call(["docker", "build", ".", "-t", image.name], cwd=str(image.template.folder_path)) # TODO: Image should have there own temporary file path
 
-    def build(self, image):
-        for line in self._client.build(path=str(image.folder_path), tag=f"{image.name}"):
-            object = json.loads(line)
-            print(line)
-            try:
-                sys.stdout.write(object["stream"])
-                sys.stdout.flush()
-            except KeyError as e:
-                pass
-
-class ImageGraph:
+class ImageTemplateGraph:
 
     def __init__(self, nx_graph):
         self._nx_graph = nx_graph
 
     @property
-    def images(self):
-        return [image for image in nx.topological_sort(self._nx_graph)]
+    def image_templates(self):
+        return [image_template for image_template in nx.topological_sort(self._nx_graph)]
 
     @classmethod
     def for_projects(cls, projects):
-        images = []
+        image_templates = []
         for project in projects:
-            images.extend(project.images)
+            image_templates.extend(project.image_templates)
 
         nx_graph = nx.DiGraph()
-        for image in images:
-            nx_graph.add_node(image)
+        for image_template in image_templates:
+            nx_graph.add_node(image_template)
 
-        for image in images:
-            base_image_name = Image.base_image_name(image)
-            base_image = None
-            try:
-                base_image = [image for image in images if image.name == base_image_name][0]
-                nx_graph.add_edge(base_image, image)
-            except IndexError as e:
-                pass
+        def find_base_image_template(image_template):
+            for it in image_templates:
+                for n in ImageTemplate.render_image_names(it):
+                    for i in image_template.render_images():
+                        bn = Image.base_image_name(i)
+                        if bn == n:
+                            return it
+            return None
 
-        return ImageGraph(nx_graph)
+        for image_template in image_templates:
+            #print(" --> " + str(image_template))
+            base_image_template = find_base_image_template(image_template)
+            if base_image_template:
+                nx_graph.add_edge(base_image_template, image_template)
+
+        return cls(nx_graph)
 
 class Project:
 
@@ -111,13 +227,15 @@ class Project:
             return "latest"
 
     @property
-    def images(self):
-        images = []
-        for dockerfile_file_path in self.folder_path.glob("**/Dockerfile"):
+    def image_templates(self):
+        image_templates = []
+        for dockerfile_file_path in self.folder_path.glob("**/Dockerfile.j2"):
             image_folder_path = dockerfile_file_path.parent
-            name = self.name if image_folder_path == self.folder_path else f"{self.name}-{image_folder_path.name}"
-            images.append(Image(image_folder_path, f"{name}:{self.version}"))
-        return images
+            image_templates.append(ImageTemplate(self, image_folder_path))
+        return image_templates
+
+    def __str__(self):
+        return f"Project({self.folder_path})"
 
 
 def list_projects(folder_path):
@@ -128,57 +246,33 @@ def list_projects(folder_path):
     return projects
 
 
-class Image:
-
-    def __init__(self, folder_path, name):
-        self._folder_path = folder_path
-        self._name = name
-
-    @classmethod
-    def base_image_name(cls, image):
-        dockerfile_file_path = image.folder_path / "Dockerfile"
-        docker_file_parser = DockerfileParser()
-        with dockerfile_file_path.open() as dockerfile:
-            docker_file_parser.content = dockerfile.read()
-        return docker_file_parser.baseimage
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def folder_path(self):
-        return self._folder_path
-
-    @property
-    def project(self):
-        return self._project
-
-    def __repr__(self):
-        return str(self)
-
-    def __str__(self):
-        return f"Image({self.folder_path}, {self.name})"
-
-
 def main(arguments):
-    user = os.environ["DOCKERHUB_USER"]
-    password = os.environ["DOCKERHUB_PASSWORD"]
+    #user = os.environ["DOCKERHUB_USER"]
+    #password = os.environ["DOCKERHUB_PASSWORD"]
 
-    #sp.call(["docker", "login", "-u", user, "-p", password])
-    p = sp.Popen(f"echo '{password}' | docker login -u {user} --password-stdin", shell=True)
-    p.wait()
-    image_graph = ImageGraph.for_projects(list_projects(pl.Path(".")))
-    for image in image_graph.images:
-        print(tc.colored(f"Building {image.name}... ", "blue"))
-        sp.call(["docker", "build", ".", "-t", image.name], cwd=str(image.folder_path))
+    #Docker.login(user, password)
 
-        sp.call(["docker", "tag", image.name, f"{user}/{image.name}"])
+    image_template_graph = ImageTemplateGraph.for_projects(list_projects(pl.Path(".")))
+    #t.sleep(10000)
+    for image_template in image_template_graph.image_templates:
+        print(tc.colored(f"Switching to {image_template}...", "green"))
+        for image in image_template.render_images():
+            #t.sleep(10000)
 
-        print(tc.colored(f"Pushing {image.name}... ", "blue"))
-        sp.call(["docker", "push", f"{user}/{image.name}"])
+            print(tc.colored(f"Building {image.name}... ", "blue"))
+            #Docker.build(image)
 
-        print()
+            print(tc.colored(f"Tagging {image.name}... ", "blue"))
+            #Docker.tag(image, f"{user}/{image.name}")
+
+            print(tc.colored(f"Pushing {image.name}... ", "blue"))
+            #Docker.push(image)
+
+            print()
+
+
+def dict_product(d):
+    return (dict(zip(d, x)) for x in it.product(*d.values()))
 
 
 if __name__ == "__main__":
