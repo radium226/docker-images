@@ -143,7 +143,7 @@ class Docker:
         sp.call(["docker", "push", f"{user}/{image.name}"])
 
     @classmethod
-    def tag(cls, image, name):
+    def tag(cls, image, user):
         sp.call(["docker", "tag", image.name, f"{user}/{image.name}"])
 
     @classmethod
@@ -263,7 +263,7 @@ def main(arguments):
             Docker.build(image)
 
             print(tc.colored(f"Tagging {image.name}... ", "blue"))
-            Docker.tag(image, user + "/" + "image.name")
+            Docker.tag(image, user)
 
             print(tc.colored(f"Pushing {image.name}... ", "blue"))
             Docker.push(image, user)
