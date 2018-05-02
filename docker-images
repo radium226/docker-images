@@ -135,12 +135,13 @@ class Docker:
 
     @classmethod
     def login(cls, user, password):
-        p = sp.Popen(f"echo '{password}' | docker login -u {user} --password-stdin", shell=True)
-        p.wait()
+        #p = sp.Popen(f"echo '{password}' | docker login -u {user} --password-stdin", shell=True)
+        #p.wait()
+        pass
 
-    @classmethod
-    def push(cls, image, user):
-        sp.call(["docker", "push", f"{user}/{image.name}"])
+    #@classmethod
+    #def push(cls, image, user):
+    #    sp.call(["docker", "push", f"{user}/{image.name}"])
 
     @classmethod
     def tag(cls, image, user):
@@ -247,10 +248,10 @@ def list_projects(folder_path):
 
 
 def main(arguments):
-    user = os.environ["DOCKERHUB_USER"]
-    password = os.environ["DOCKERHUB_PASSWORD"]
+    user = "toto" #os.environ["DOCKERHUB_USER"]
+    #password = os.environ["DOCKERHUB_PASSWORD"]
 
-    Docker.login(user, password)
+    #Docker.login(user, password)
 
     image_template_graph = ImageTemplateGraph.for_projects(list_projects(pl.Path(".")))
     #t.sleep(10000)
@@ -266,7 +267,7 @@ def main(arguments):
             Docker.tag(image, user)
 
             print(tc.colored(f"Pushing {image.name}... ", "blue"))
-            Docker.push(image, user)
+            #Docker.push(image, user)
 
             print()
 
